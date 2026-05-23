@@ -1,0 +1,38 @@
+name: Build WiFi Module
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_tag:
+        description: 'Kernel source tag/branch from Motorola'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git bc bison flex libssl-dev libelf-dev python3 clang lld llvm
+
+      - name: Clone kernel source
+        run: |
+          git clone --depth=1 -b ${{ github.event.inputs.kernel_tag }} https://github.com/MotorolaMobilityLLC/kernel-mtk kernel
+          git clone --depth=1 https://github.com/MotorolaMobilityLLC/vendor-mediatek-kernel_modules-connectivity-wlan-core-gen4m wlan
+
+      - name: Patch MAC change
+        run: |
+          cd wlan
+          sed -i 's/return -EOPNOTSUPP/\/\/ return -EOPNOTSUPP/' os/linux/gl_cfg80211.c 2>/dev/null || true
+
+      - name: Build module
+        run: |
+          cd wlan
+          make -C ../kernel M=$(pwd) ARCH=arm64 CC=clang LD=ld.lld modules
+
+      - name: Upload module
+        uses: actions/upload-artifact@v4
+        with:
+          name: wlan_patched
+          path: wlan/**/*.ko
