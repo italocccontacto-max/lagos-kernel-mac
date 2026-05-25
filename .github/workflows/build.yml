@@ -44,7 +44,8 @@ jobs:
       - name: Build kernel
         run: |
           cd kernel
-          make ARCH=arm64 LLVM=1 -j$(nproc) Image.gz
+          make ARCH=arm64 LLVM=1 -j$(nproc) Image.gz 2>&1 | tee /tmp/build.log || \
+          (echo "=== ERRORES ===" && grep -i "error:" /tmp/build.log | tail -30 && exit 1)
 
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
