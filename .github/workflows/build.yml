@@ -1,4 +1,4 @@
-name: Build WiFi Module
+name: Build Kernel
 
 on:
   workflow_dispatch:
@@ -19,26 +19,35 @@ jobs:
       - name: Clone kernel source
         run: |
           git clone --depth=1 -b ${{ github.event.inputs.kernel_tag }} https://github.com/MotorolaMobilityLLC/kernel-mtk kernel
-          git clone --depth=1 https://github.com/MotorolaMobilityLLC/vendor-mediatek-kernel_modules-connectivity-wlan-core-gen4m wlan
-
-      - name: Prepare kernel
-        run: |
-          cd kernel
-          make ARCH=arm64 LLVM=1 gki_defconfig
-          make ARCH=arm64 LLVM=1 prepare scripts
 
       - name: Patch MAC change
         run: |
-          cd wlan
-          sed -i 's/return -EOPNOTSUPP/\/\/ return -EOPNOTSUPP/' os/linux/gl_cfg80211.c 2>/dev/null || true
+          python3 -c "
+          f = open('kernel/net/core/dev.c', 'r')
+          c = f.read()
+          f.close()
+          old = '\tif (!ops->ndo_set_mac_address)\n\t\treturn -EOPNOTSUPP;'
+          new = '\tif (!ops->ndo_set_mac_address) {\n\t\tmemcpy(dev->dev_addr, sa->sa_data, dev->addr_len);\n\t\treturn 0;\n\t}'
+          c2 = c.replace(old, new, 1)
+          if c == c2:
+              print('PATCH FAILED')
+              exit(1)
+          open('kernel/net/core/dev.c', 'w').write(c2)
+          print('PATCH OK')
+          "
 
-      - name: Build module
+      - name: Configure kernel
         run: |
-          cd wlan
-          make -C ../kernel M=$(pwd) ARCH=arm64 LLVM=1 modules
+          cd kernel
+          make ARCH=arm64 LLVM=1 gki_defconfig
 
-      - name: Upload module
+      - name: Build kernel
+        run: |
+          cd kernel
+          make ARCH=arm64 LLVM=1 -j$(nproc) Image.gz
+
+      - name: Upload kernel image
         uses: actions/upload-artifact@v4
         with:
-          name: wlan_patched
-          path: wlan/**/*.ko
+          name: kernel_patched
+          path: kernel/arch/arm64/boot/Image.gz
