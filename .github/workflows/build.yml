@@ -24,8 +24,8 @@ jobs:
       - name: Prepare kernel
         run: |
           cd kernel
-          make ARCH=arm64 CC=clang LD=ld.lld gki_defconfig
-          make ARCH=arm64 CC=clang LD=ld.lld prepare scripts
+          make ARCH=arm64 LLVM=1 gki_defconfig
+          make ARCH=arm64 LLVM=1 prepare scripts
 
       - name: Patch MAC change
         run: |
@@ -35,7 +35,7 @@ jobs:
       - name: Build module
         run: |
           cd wlan
-          make -C ../kernel M=$(pwd) ARCH=arm64 CC=clang LD=ld.lld modules
+          make -C ../kernel M=$(pwd) ARCH=arm64 LLVM=1 modules
 
       - name: Upload module
         uses: actions/upload-artifact@v4
