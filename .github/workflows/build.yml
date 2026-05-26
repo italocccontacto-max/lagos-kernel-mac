@@ -11,6 +11,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -38,8 +41,9 @@ jobs:
 
       - name: Configure kernel
         run: |
+          cp moto_g06.config kernel/arch/arm64/configs/moto_g06_defconfig
           cd kernel
-          make ARCH=arm64 LLVM=1 gki_defconfig
+          make ARCH=arm64 LLVM=1 moto_g06_defconfig
 
       - name: Build kernel
         run: |
