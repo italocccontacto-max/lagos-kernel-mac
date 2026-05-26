@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -17,25 +17,31 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git bc bison flex libssl-dev libelf-dev python3 clang lld llvm
+          sudo apt-get install -y git bc bison flex libssl-dev \
+            libelf-dev python3 clang lld llvm
 
       - name: Clone kernel source
         run: |
-          git clone --depth=1 -b ${{ github.event.inputs.kernel_tag }} https://github.com/MotorolaMobilityLLC/kernel-mtk kernel
+          git clone --depth=1 \
+            -b ${{ github.event.inputs.kernel_tag }} \
+            https://github.com/MotorolaMobilityLLC/kernel-mtk kernel
 
       - name: Patch MAC change
         run: |
           python3 -c "
-          f = open('kernel/net/core/dev.c', 'r')
-          c = f.read()
-          f.close()
+          path = 'kernel/net/core/dev.c'
+          c = open(path).read()
           old = '\tif (!ops->ndo_set_mac_address)\n\t\treturn -EOPNOTSUPP;'
-          new = '\tif (!ops->ndo_set_mac_address) {\n\t\tmemcpy((unsigned char *)dev->dev_addr, sa->sa_data, dev->addr_len);\n\t\treturn 0;\n\t}'
-          c2 = c.replace(old, new, 1)
-          if c == c2:
-              print('PATCH FAILED')
+          new = (
+            '\tif (!ops->ndo_set_mac_address) {\n'
+            '\t\tmemcpy((unsigned char *)dev->dev_addr, sa->sa_data, dev->addr_len);\n'
+            '\t\treturn 0;\n'
+            '\t}'
+          )
+          if old not in c:
+              print('ERROR: patch target not found — check kernel version')
               exit(1)
-          open('kernel/net/core/dev.c', 'w').write(c2)
+          open(path, 'w').write(c.replace(old, new, 1))
           print('PATCH OK')
           "
 
@@ -49,7 +55,9 @@ jobs:
         run: |
           df -h .
           cd kernel
-          make ARCH=arm64 LLVM=1 -j$(nproc) Image.gz 2>&1 | tee /tmp/build.log; exit ${PIPESTATUS[0]}
+          make ARCH=arm64 LLVM=1 -j$(nproc) Image.gz \
+            2>&1 | tee /tmp/build.log
+          exit ${PIPESTATUS[0]}
 
       - name: Upload logs
         if: always()
@@ -59,7 +67,8 @@ jobs:
           path: /tmp/build.log
 
       - name: Upload kernel image
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: kernel_patched
+          name: kernel_patched_${{ github.event.inputs.kernel_tag }}
           path: kernel/arch/arm64/boot/Image*
