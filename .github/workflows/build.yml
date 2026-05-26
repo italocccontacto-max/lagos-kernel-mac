@@ -49,19 +49,16 @@ jobs:
         run: |
           cp moto_g06.config kernel/arch/arm64/configs/moto_g06_defconfig
           cd kernel
+          # Desactivar TRIM_UNUSED_KSYMS para evitar dependencia de abi_symbollist.raw
+          scripts/config --file arch/arm64/configs/moto_g06_defconfig \
+            --disable TRIM_UNUSED_KSYMS
           make ARCH=arm64 LLVM=1 moto_g06_defconfig
 
       - name: Build kernel
         run: |
           df -h .
           cd kernel
-          sed -i 's/^.*abi_symbollist\.raw.*$//' Makefile
-          sed -i '/abi_symbollist/d' scripts/Makefile.modpost 2>/dev/null || true
-          mkdir -p android
-          touch android/abi_symbollist.raw
           make ARCH=arm64 LLVM=1 \
-            KMI_SYMBOL_LIST_STRICT_MODE=0 \
-            KBUILD_MODPOST_WARN=1 \
             -j$(nproc) Image.gz \
             2>&1 | tee /tmp/build.log
           exit ${PIPESTATUS[0]}
