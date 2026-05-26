@@ -27,7 +27,7 @@ jobs:
           c = f.read()
           f.close()
           old = '\tif (!ops->ndo_set_mac_address)\n\t\treturn -EOPNOTSUPP;'
-          new = '\tif (!ops->ndo_set_mac_address) {\n\t\tmemcpy(dev->dev_addr, sa->sa_data, dev->addr_len);\n\t\treturn 0;\n\t}'
+          new = '\tif (!ops->ndo_set_mac_address) {\n\t\tmemcpy((unsigned char *)dev->dev_addr, sa->sa_data, dev->addr_len);\n\t\treturn 0;\n\t}'
           c2 = c.replace(old, new, 1)
           if c == c2:
               print('PATCH FAILED')
