@@ -45,7 +45,14 @@ jobs:
         run: |
           df -h .
           cd kernel
-          make ARCH=arm64 LLVM=1 -j1 Image.gz
+          make ARCH=arm64 LLVM=1 -j$(nproc) Image.gz 2>&1 | tee /tmp/build.log; exit ${PIPESTATUS[0]}
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build_logs
+          path: /tmp/build.log
 
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
